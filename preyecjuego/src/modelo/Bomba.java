@@ -14,12 +14,14 @@ public class Bomba {
     private int columna;
     private Jugador propietario;
     private long tiempoColocacion;
+    private int rangoExplosion;
 
     public Bomba(int fila, int columna, Jugador propietario){
 
         this.fila = fila;
         this.columna = columna;
         this.propietario = propietario;
+        this.rangoExplosion = propietario.getRangoExplosion();
         tiempoColocacion = System.currentTimeMillis();
     }
 
@@ -36,5 +38,9 @@ public class Bomba {
 
     public Jugador getPropietario() {
         return propietario;
+    }
+
+    public int getRangoExplosion() {
+        return rangoExplosion;
     }
 }

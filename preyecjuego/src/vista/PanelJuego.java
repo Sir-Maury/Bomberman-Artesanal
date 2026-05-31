@@ -10,10 +10,13 @@ import java.awt.Dimension;
 import java.awt.Graphics;
 import javax.swing.JPanel;
 import modelo.BloqueDestruible;
+import modelo.Bomba;
 import modelo.Enemigo;
 import modelo.Explosion;
 import modelo.Jugador;
 import modelo.Posicion;
+import modelo.PowerUp;
+import modelo.TipoPowerUp;
 
 public class PanelJuego extends JPanel {
 
@@ -60,9 +63,14 @@ public class PanelJuego extends JPanel {
                 dibujarBloqueDestruible(g, b);
             }
         }
+
+        for(PowerUp powerUp : control.getPowerUps()) {
+            dibujarPowerUp(g, powerUp);
+        }
+
         g.setColor(Color.RED);
 
-        for(var b : control.getBombas()){
+        for(Bomba b : control.getBombas()){
 
             g.fillOval(
                     b.getColumna()*TAM,
@@ -86,8 +94,8 @@ public class PanelJuego extends JPanel {
             }
         }
 
-        dibujarJugador(g, control.getJugador1(), Color.CYAN);
-        dibujarJugador(g, control.getJugador2(), Color.MAGENTA);
+        dibujarJugador(g, control.getJugador1(), colorJugador(control.getJugador1(), Color.CYAN));
+        dibujarJugador(g, control.getJugador2(), colorJugador(control.getJugador2(), Color.MAGENTA));
 
         for(Enemigo enemigo : control.getEnemigos()) {
             dibujarEnemigo(g, enemigo);
@@ -146,6 +154,40 @@ public class PanelJuego extends JPanel {
         g.drawLine(x + 18, y + 34, x + 18, y + TAM - 3);
     }
 
+    private void dibujarPowerUp(Graphics g, PowerUp powerUp) {
+
+        int x = powerUp.getColumna() * TAM + 10;
+        int y = powerUp.getFila() * TAM + 10;
+
+        g.setColor(colorPowerUp(powerUp.getTipo()));
+        g.fillRect(x, y, TAM - 20, TAM - 20);
+        g.setColor(Color.WHITE);
+        g.drawRect(x, y, TAM - 21, TAM - 21);
+    }
+
+    private Color colorPowerUp(TipoPowerUp tipo) {
+
+        switch(tipo) {
+            case MAS_BOMBAS:
+                return Color.BLUE;
+            case MAYOR_RANGO:
+                return Color.ORANGE;
+            case ESCUDO:
+                return Color.RED;
+            default:
+                return Color.WHITE;
+        }
+    }
+
+    private Color colorJugador(Jugador jugador, Color colorBase) {
+
+        if(jugador.tieneEscudoActivo()) {
+            return new Color(255, 215, 0);
+        }
+
+        return colorBase;
+    }
+
     private void dibujarJugador(Graphics g, Jugador jugador, Color color) {
 
         if(jugador.isVivo()) {
@@ -194,6 +236,18 @@ public class PanelJuego extends JPanel {
         g.drawString("J1: WASD + SPACE", 15, 18);
         g.drawString("J2: FLECHAS + ENTER", 170, 18);
         g.drawString("R: REINICIAR", getWidth() - 120, 18);
+        g.drawString(textoEstadoJugador("J1", control.getJugador1()), 15, getHeight() - 12);
+        g.drawString(textoEstadoJugador("J2", control.getJugador2()), 300, getHeight() - 12);
+    }
+
+    private String textoEstadoJugador(String etiqueta, Jugador jugador) {
+
+        long escudo = jugador.getTiempoEscudoRestante() / 1000;
+
+        return etiqueta
+                + " Rango:" + jugador.getRangoExplosion()
+                + " Bombas:" + jugador.getMejorasBombas()
+                + " Escudo:" + escudo + "s";
     }
 
     private void dibujarMenu(Graphics g) {

@@ -16,15 +16,18 @@ import modelo.Explosion;
 import modelo.Jugador;
 import modelo.Mapa;
 import modelo.Posicion;
+import modelo.PowerUp;
+import modelo.TipoPowerUp;
 
 public class ControlJuego {
 
     public static final int TAM_CASILLA = 50;
-    private static final int RANGO_BOMBA = 1;
     private static final long TIEMPO_EXPLOSION = 1200;
     private static final double PROBABILIDAD_BLOQUE = 0.45;
+    private static final double PROBABILIDAD_POWER_UP = 0.35;
+    private static final int MAX_POWER_UPS_GENERADOS = 6;
     private static final int MAX_BOMBAS_ACTIVAS = 3;
-    private static final long TIEMPO_ENTRE_BOMBAS = 800;
+    private static final long TIEMPO_ESCUDO = 6000;
     private static final long TIEMPO_MOVIMIENTO_ENEMIGO = 600;
     private static final int DISTANCIA_PERSECUCION = 5;
 
@@ -35,9 +38,11 @@ public class ControlJuego {
     private List<Bomba> bombas;
     private List<Explosion> explosiones;
     private List<Enemigo> enemigos;
+    private List<PowerUp> powerUps;
     private EstadoJuego estadoJuego;
     private String mensajeFinal;
     private Random random;
+    private int powerUpsGenerados;
 
     public ControlJuego() {
 
@@ -55,7 +60,9 @@ public class ControlJuego {
         bombas = new java.util.ArrayList<>();
         explosiones = new java.util.ArrayList<>();
         enemigos = new java.util.ArrayList<>();
+        powerUps = new java.util.ArrayList<>();
         mensajeFinal = "";
+        powerUpsGenerados = 0;
 
         generarBloquesDestruibles();
         generarEnemigos();
@@ -96,6 +103,11 @@ public class ControlJuego {
     public List<Enemigo> getEnemigos(){
 
         return enemigos;
+    }
+
+    public List<PowerUp> getPowerUps(){
+
+        return powerUps;
     }
 
     public boolean isJuegoTerminado() {
@@ -153,10 +165,18 @@ public class ControlJuego {
         int nuevaY = jugador.getPosicion().getY();
 
         switch(direccion) {
-            case ARRIBA -> nuevaY -= TAM_CASILLA;
-            case ABAJO -> nuevaY += TAM_CASILLA;
-            case IZQUIERDA -> nuevaX -= TAM_CASILLA;
-            case DERECHA -> nuevaX += TAM_CASILLA;
+            case ARRIBA:
+                nuevaY -= TAM_CASILLA;
+                break;
+            case ABAJO:
+                nuevaY += TAM_CASILLA;
+                break;
+            case IZQUIERDA:
+                nuevaX -= TAM_CASILLA;
+                break;
+            case DERECHA:
+                nuevaX += TAM_CASILLA;
+                break;
         }
 
         if(!puedeMover(jugador, nuevaX, nuevaY)) {
@@ -165,8 +185,40 @@ public class ControlJuego {
 
         jugador.getPosicion().setX(nuevaX);
         jugador.getPosicion().setY(nuevaY);
+        recogerPowerUp(jugador);
         verificarImpactoExplosionesActivas();
         return true;
+    }
+
+    private void recogerPowerUp(Jugador jugador) {
+
+        Iterator<PowerUp> it = powerUps.iterator();
+
+        while(it.hasNext()) {
+            PowerUp powerUp = it.next();
+
+            if(powerUp.getFila() == jugador.getFila()
+                    && powerUp.getColumna() == jugador.getColumna()) {
+                aplicarPowerUp(jugador, powerUp);
+                it.remove();
+                return;
+            }
+        }
+    }
+
+    private void aplicarPowerUp(Jugador jugador, PowerUp powerUp) {
+
+        switch(powerUp.getTipo()) {
+            case MAS_BOMBAS:
+                jugador.mejorarBombas();
+                break;
+            case MAYOR_RANGO:
+                jugador.aumentarRangoExplosion();
+                break;
+            case ESCUDO:
+                jugador.activarEscudo(TIEMPO_ESCUDO);
+                break;
+        }
     }
 
     public void colocarBomba(){
@@ -182,7 +234,7 @@ public class ControlJuego {
         long tiempoActual = System.currentTimeMillis();
 
         if(contarBombasActivas(jugador) >= MAX_BOMBAS_ACTIVAS
-                || tiempoActual - jugador.getUltimoTiempoBomba() < TIEMPO_ENTRE_BOMBAS) {
+                || tiempoActual - jugador.getUltimoTiempoBomba() < jugador.getTiempoEntreBombas()) {
             return;
         }
 
@@ -357,10 +409,10 @@ public class ControlJuego {
         List<Posicion> celdas = new java.util.ArrayList<>();
         agregarCeldaSiExiste(celdas, bomba.getFila(), bomba.getColumna());
 
-        agregarLineaExplosion(celdas, bomba.getFila(), bomba.getColumna(), -1, 0);
-        agregarLineaExplosion(celdas, bomba.getFila(), bomba.getColumna(), 1, 0);
-        agregarLineaExplosion(celdas, bomba.getFila(), bomba.getColumna(), 0, -1);
-        agregarLineaExplosion(celdas, bomba.getFila(), bomba.getColumna(), 0, 1);
+        agregarLineaExplosion(celdas, bomba.getFila(), bomba.getColumna(), -1, 0, bomba.getRangoExplosion());
+        agregarLineaExplosion(celdas, bomba.getFila(), bomba.getColumna(), 1, 0, bomba.getRangoExplosion());
+        agregarLineaExplosion(celdas, bomba.getFila(), bomba.getColumna(), 0, -1, bomba.getRangoExplosion());
+        agregarLineaExplosion(celdas, bomba.getFila(), bomba.getColumna(), 0, 1, bomba.getRangoExplosion());
 
         return celdas;
     }
@@ -370,9 +422,10 @@ public class ControlJuego {
             int filaInicial,
             int columnaInicial,
             int cambioFila,
-            int cambioColumna) {
+            int cambioColumna,
+            int rango) {
 
-        for(int distancia = 1; distancia <= RANGO_BOMBA; distancia++) {
+        for(int distancia = 1; distancia <= rango; distancia++) {
 
             int fila = filaInicial + cambioFila * distancia;
             int columna = columnaInicial + cambioColumna * distancia;
@@ -419,8 +472,38 @@ public class ControlJuego {
 
             if(explosion.afectaCelda(bloque.getFila(), bloque.getColumna())) {
                 bloque.destruir();
+                generarPowerUpSiCorresponde(bloque.getFila(), bloque.getColumna());
             }
         }
+    }
+
+    private void generarPowerUpSiCorresponde(int fila, int columna) {
+
+        if(powerUpsGenerados >= MAX_POWER_UPS_GENERADOS) {
+            return;
+        }
+
+        if(random.nextDouble() > PROBABILIDAD_POWER_UP) {
+            return;
+        }
+
+        powerUps.add(new PowerUp(fila, columna, elegirTipoPowerUp()));
+        powerUpsGenerados++;
+    }
+
+    private TipoPowerUp elegirTipoPowerUp() {
+
+        int valor = random.nextInt(100);
+
+        if(valor < 50) {
+            return TipoPowerUp.MAS_BOMBAS;
+        }
+
+        if(valor < 85) {
+            return TipoPowerUp.MAYOR_RANGO;
+        }
+
+        return TipoPowerUp.ESCUDO;
     }
 
     private void verificarImpactoJugadores(Explosion explosion) {
@@ -444,6 +527,7 @@ public class ControlJuego {
     private void verificarImpactoJugador(Jugador jugador, Explosion explosion) {
 
         if(jugador.isVivo()
+                && !jugador.tieneEscudoActivo()
                 && explosion.afectaCelda(jugador.getFila(), jugador.getColumna())) {
             jugador.eliminar();
         }
@@ -469,13 +553,31 @@ public class ControlJuego {
         if(!jugador1.isVivo() && !jugador2.isVivo()) {
             estadoJuego = EstadoJuego.FINALIZADO;
             mensajeFinal = "Empate";
-        } else if(!jugador1.isVivo()) {
+            return;
+        }
+
+        if(hayEnemigosVivos()) {
+            return;
+        }
+
+        if(!jugador1.isVivo()) {
             estadoJuego = EstadoJuego.FINALIZADO;
             mensajeFinal = "Gana Jugador 2";
         } else if(!jugador2.isVivo()) {
             estadoJuego = EstadoJuego.FINALIZADO;
             mensajeFinal = "Gana Jugador 1";
         }
+    }
+
+    private boolean hayEnemigosVivos() {
+
+        for(Enemigo enemigo : enemigos) {
+            if(enemigo.isVivo()) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private void actualizarEnemigos() {
@@ -516,10 +618,18 @@ public class ControlJuego {
         int nuevaY = enemigo.getPosicion().getY();
 
         switch(direccion) {
-            case ARRIBA -> nuevaY -= TAM_CASILLA;
-            case ABAJO -> nuevaY += TAM_CASILLA;
-            case IZQUIERDA -> nuevaX -= TAM_CASILLA;
-            case DERECHA -> nuevaX += TAM_CASILLA;
+            case ARRIBA:
+                nuevaY -= TAM_CASILLA;
+                break;
+            case ABAJO:
+                nuevaY += TAM_CASILLA;
+                break;
+            case IZQUIERDA:
+                nuevaX -= TAM_CASILLA;
+                break;
+            case DERECHA:
+                nuevaX += TAM_CASILLA;
+                break;
         }
 
         if(puedeMoverEnemigo(enemigo, nuevaX, nuevaY)) {
@@ -559,10 +669,18 @@ public class ControlJuego {
             int nuevaY = enemigo.getPosicion().getY();
 
             switch(direccion) {
-                case ARRIBA -> nuevaY -= TAM_CASILLA;
-                case ABAJO -> nuevaY += TAM_CASILLA;
-                case IZQUIERDA -> nuevaX -= TAM_CASILLA;
-                case DERECHA -> nuevaX += TAM_CASILLA;
+                case ARRIBA:
+                    nuevaY -= TAM_CASILLA;
+                    break;
+                case ABAJO:
+                    nuevaY += TAM_CASILLA;
+                    break;
+                case IZQUIERDA:
+                    nuevaX -= TAM_CASILLA;
+                    break;
+                case DERECHA:
+                    nuevaX += TAM_CASILLA;
+                    break;
             }
 
             int fila = nuevaY / TAM_CASILLA;
@@ -675,6 +793,7 @@ public class ControlJuego {
     private void verificarContactoConJugador(Enemigo enemigo, Jugador jugador) {
 
         if(jugador.isVivo()
+                && !jugador.tieneEscudoActivo()
                 && enemigo.getFila() == jugador.getFila()
                 && enemigo.getColumna() == jugador.getColumna()) {
             jugador.eliminar();

@@ -14,6 +14,9 @@ public class Jugador implements Movible {
     private final int TAM_CASILLA;
     private boolean vivo;
     private long ultimoTiempoBomba;
+    private int rangoExplosion;
+    private int mejorasBombas;
+    private long escudoHasta;
     
 
     public Jugador() {
@@ -31,6 +34,9 @@ public class Jugador implements Movible {
         TAM_CASILLA = 50;
         vivo = true;
         ultimoTiempoBomba = 0;
+        rangoExplosion = 1;
+        mejorasBombas = 0;
+        escudoHasta = 0;
     }
 
     @Override
@@ -96,6 +102,52 @@ public class Jugador implements Movible {
 
     public void setUltimoTiempoBomba(long ultimoTiempoBomba) {
         this.ultimoTiempoBomba = ultimoTiempoBomba;
+    }
+
+    public int getRangoExplosion() {
+        return rangoExplosion;
+    }
+
+    public void aumentarRangoExplosion() {
+        rangoExplosion++;
+    }
+
+    public void mejorarBombas() {
+        mejorasBombas++;
+    }
+
+    public int getTiempoEntreBombas() {
+
+        int tiempo = 800 - mejorasBombas * 150;
+
+        if(tiempo < 200) {
+            return 200;
+        }
+
+        return tiempo;
+    }
+
+    public int getMejorasBombas() {
+        return mejorasBombas;
+    }
+
+    public void activarEscudo(long duracion) {
+        escudoHasta = System.currentTimeMillis() + duracion;
+    }
+
+    public boolean tieneEscudoActivo() {
+        return System.currentTimeMillis() < escudoHasta;
+    }
+
+    public long getTiempoEscudoRestante() {
+
+        long restante = escudoHasta - System.currentTimeMillis();
+
+        if(restante < 0) {
+            return 0;
+        }
+
+        return restante;
     }
 }
     

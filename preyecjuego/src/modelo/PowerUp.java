@@ -4,10 +4,28 @@
  */
 package modelo;
 
-/**
- *
- * @author USUARIO
- */
 public class PowerUp {
-    
+
+    private int fila;
+    private int columna;
+    private TipoPowerUp tipo;
+
+    public PowerUp(int fila, int columna, TipoPowerUp tipo) {
+
+        this.fila = fila;
+        this.columna = columna;
+        this.tipo = tipo;
+    }
+
+    public int getFila() {
+        return fila;
+    }
+
+    public int getColumna() {
+        return columna;
+    }
+
+    public TipoPowerUp getTipo() {
+        return tipo;
+    }
 }
